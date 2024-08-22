@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
 
     // receive the nearest neighbours from other processes
     for (int i = 1; i < NUM_PROC; i++) {
-      int start = (M / NUM_PROC) * i,
-          end = std::min(M, (M / NUM_PROC) * (i + 1));
+      int start = numQueriesPerProc * i,
+          end = std::min(M, numQueriesPerProc * (i + 1));
       for (int j = start; j < end; j++) {
         int sz;
         MPI_Recv(&sz, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

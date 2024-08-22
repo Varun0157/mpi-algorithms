@@ -1,4 +1,4 @@
 - handle case of `NUM_PROC > M`
 - switch to heap implementation of `Nlog(K)` rather than `Nlog(N)`
-- would if be faster to only send over the relevant queries? Try
--  
+- would it be faster to only send over the relevant queries? Try
+- is it necessary to send size? Can't you set it const at `min(K, N)`?

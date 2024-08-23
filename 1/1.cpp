@@ -7,6 +7,7 @@ Distributed K Nearest Neighbours
 #include <iostream>
 #include <math.h>
 #include <mpi.h>
+#include <queue>
 #include <vector>
 
 int main(int argc, char *argv[]) {
@@ -50,8 +51,6 @@ int main(int argc, char *argv[]) {
   MPI_Bcast(points.data(), N * 2, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(queries.data(), M * 2, MPI_INT, 0, MPI_COMM_WORLD);
 
-  std::vector<std::vector<std::pair<float, float>>> localNN;
-
   const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
   int numQueriesPerProc = (int)std::ceil((float)M / NUM_PROC);
   int start = numQueriesPerProc * WORLD_RANK,
@@ -59,20 +58,35 @@ int main(int argc, char *argv[]) {
 
   const int pointsPerQuery = std::min(K, N);
 
+  std::vector<std::vector<std::pair<float, float>>> localNN;
+
+  if (WORLD_RANK >= NUM_PROC)
+    goto end;
+
+  localNN.resize(end - start);
   for (int i = start; i < end; i++) {
-    std::vector<std::pair<int, std::pair<float, float>>> dist;
-    for (int j = 0; j < N; j++) {
-      int d = (queries[i].first - points[j].first) *
-                  (queries[i].first - points[j].first) +
-              (queries[i].second - points[j].second) *
-                  (queries[i].second - points[j].second);
-      dist.push_back({d, points[j]});
+    const std::pair<float, float> &query = queries[i];
+    auto cmp = [&query](const std::pair<float, float> &a,
+                        const std::pair<float, float> &b) -> bool {
+      return std::pow(a.first - query.first, 2) +
+                 std::pow(a.second - query.second, 2) <
+             std::pow(b.first - query.first, 2) +
+                 std::pow(b.second - query.second, 2);
+    };
+    std::priority_queue<std::pair<float, float>,
+                        std::vector<std::pair<float, float>>, decltype(cmp)>
+        pq(cmp);
+    for (const std::pair<float, float> &point : points) {
+      pq.push(point);
+      if (pq.size() > pointsPerQuery)
+        pq.pop();
     }
-    std::sort(dist.begin(), dist.end());
-    std::vector<std::pair<float, float>> nn;
-    for (int j = 0; j < pointsPerQuery; j++)
-      nn.push_back(dist[j].second);
-    localNN.push_back(nn);
+
+    std::vector<std::pair<float, float>> &nn = localNN[i - start];
+    while (!pq.empty()) {
+      nn.push_back(pq.top());
+      pq.pop();
+    }
   }
 
   if (WORLD_RANK != 0) {
@@ -82,6 +96,7 @@ int main(int argc, char *argv[]) {
   } else {
     std::vector<std::vector<std::pair<float, float>>> globalNN(
         M, std::vector<std::pair<float, float>>(pointsPerQuery));
+
     // push the current local nearest neighbours
     for (int i = 0; i < localNN.size(); i++)
       globalNN[i] = localNN[i];
@@ -104,6 +119,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
+end:
   MPI_Finalize();
   return 0;
 }

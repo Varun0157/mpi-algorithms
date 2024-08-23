@@ -11,8 +11,8 @@ Distributed K Nearest Neighbours
 int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
 
-  int NUM_PROC;
-  MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROC);
+  int WORLD_SIZE;
+  MPI_Comm_size(MPI_COMM_WORLD, &WORLD_SIZE);
 
   int WORLD_RANK;
   MPI_Comm_rank(MPI_COMM_WORLD, &WORLD_RANK);
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::vector<std::pair<float, float>>> localNN;
 
-  NUM_PROC = std::min(NUM_PROC, M); // in case NUM_PROC > M
+  const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
   int numQueriesPerProc = (int)std::ceil((float)M / NUM_PROC);
   int start = numQueriesPerProc * WORLD_RANK,
       end = std::min(M, numQueriesPerProc * (WORLD_RANK + 1));

@@ -3,12 +3,18 @@ Distributed K Nearest Neighbours
 */
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <math.h>
 #include <mpi.h>
 #include <vector>
 
 int main(int argc, char *argv[]) {
+  if (argc != 2) {
+    std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
+    return 1;
+  }
+
   MPI_Init(&argc, &argv);
 
   int WORLD_SIZE;
@@ -20,21 +26,21 @@ int main(int argc, char *argv[]) {
   int N, M, K;
   std::vector<std::pair<float, float>> points, queries;
   if (WORLD_RANK == 0) {
-    std::cin >> N >> M >> K;
+    std::ifstream input(argv[1]);
+
+    input >> N >> M >> K;
 
     points.resize(N);
     for (int i = 0; i < N; i++)
-      std::cin >> points[i].first >> points[i].second;
+      input >> points[i].first >> points[i].second;
     queries.resize(M);
     for (int i = 0; i < M; i++)
-      std::cin >> queries[i].first >> queries[i].second;
+      input >> queries[i].first >> queries[i].second;
   }
 
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  const int pointsPerQuery = std::min(K, N);
 
   if (WORLD_RANK != 0) {
     points.resize(N);
@@ -50,6 +56,8 @@ int main(int argc, char *argv[]) {
   int numQueriesPerProc = (int)std::ceil((float)M / NUM_PROC);
   int start = numQueriesPerProc * WORLD_RANK,
       end = std::min(M, numQueriesPerProc * (WORLD_RANK + 1));
+
+  const int pointsPerQuery = std::min(K, N);
 
   for (int i = start; i < end; i++) {
     std::vector<std::pair<int, std::pair<float, float>>> dist;

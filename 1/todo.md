@@ -1,3 +1,3 @@
 - switch to heap implementation of `Nlog(K)` rather than `Nlog(N)`
 - would it be faster to only send over the relevant queries? analyse the possibility in the report
-- read input from file, not stdin. Check the assignment doc. 
+- instead of re-calculating start and end just push_back maybe? 

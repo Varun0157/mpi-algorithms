@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
   MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+  const int pointsPerQuery = std::min(K, N);
+
   if (WORLD_RANK != 0) {
     points.resize(N);
     queries.resize(M);
@@ -44,6 +46,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::vector<std::pair<float, float>>> localNN;
 
+  NUM_PROC = std::min(NUM_PROC, M); // in case NUM_PROC > M
   int numQueriesPerProc = (int)std::ceil((float)M / NUM_PROC);
   int start = numQueriesPerProc * WORLD_RANK,
       end = std::min(M, numQueriesPerProc * (WORLD_RANK + 1));
@@ -59,21 +62,18 @@ int main(int argc, char *argv[]) {
     }
     std::sort(dist.begin(), dist.end());
     std::vector<std::pair<float, float>> nn;
-    for (int j = 0; j < K; j++)
+    for (int j = 0; j < pointsPerQuery; j++)
       nn.push_back(dist[j].second);
     localNN.push_back(nn);
   }
 
   if (WORLD_RANK != 0) {
-    for (int i = 0; i < localNN.size(); i++) {
-      int sz = localNN[i].size();
-      MPI_Send(&sz, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-      MPI_Send(localNN[i].data(), sz * 2, MPI_INT, 0, 0, MPI_COMM_WORLD);
-    }
-  }
-
-  if (WORLD_RANK == 0) {
-    std::vector<std::vector<std::pair<float, float>>> globalNN(M);
+    for (int i = 0; i < localNN.size(); i++)
+      MPI_Send(localNN[i].data(), pointsPerQuery * 2, MPI_INT, 0, 0,
+               MPI_COMM_WORLD);
+  } else {
+    std::vector<std::vector<std::pair<float, float>>> globalNN(
+        M, std::vector<std::pair<float, float>>(pointsPerQuery));
     // push the current local nearest neighbours
     for (int i = 0; i < localNN.size(); i++)
       globalNN[i] = localNN[i];
@@ -83,11 +83,8 @@ int main(int argc, char *argv[]) {
       int start = numQueriesPerProc * i,
           end = std::min(M, numQueriesPerProc * (i + 1));
       for (int j = start; j < end; j++) {
-        int sz;
-        MPI_Recv(&sz, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        globalNN[j].resize(sz);
-        MPI_Recv(globalNN[j].data(), sz * 2, MPI_INT, i, 0, MPI_COMM_WORLD,
-                 MPI_STATUS_IGNORE);
+        MPI_Recv(globalNN[j].data(), pointsPerQuery * 2, MPI_INT, i, 0,
+                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       }
     }
 

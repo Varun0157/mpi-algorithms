@@ -1,4 +1,3 @@
-- handle case of `NUM_PROC > M`
 - switch to heap implementation of `Nlog(K)` rather than `Nlog(N)`
-- would it be faster to only send over the relevant queries? Try
-- is it necessary to send size? Can't you set it const at `min(K, N)`?
+- would it be faster to only send over the relevant queries? analyse the possibility in the report
+- read input from file, not stdin. Check the assignment doc. 

@@ -1,4 +1,1 @@
-- switch to heap implementation of `Nlog(K)` rather than `Nlog(N)`
 - would it be faster to only send over the relevant queries? analyse the possibility in the report. Actually, consider doing it. Feels like that would be a "purer" distsys
-- instead of re-calculating start and end just create a common function. This ensures changing in one place does not mess up the other. 
-- 

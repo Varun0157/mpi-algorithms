@@ -53,8 +53,15 @@ int main(int argc, char *argv[]) {
 
   const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
   int numQueriesPerProc = (int)std::ceil((float)M / NUM_PROC);
-  int start = numQueriesPerProc * WORLD_RANK,
-      end = std::min(M, numQueriesPerProc * (WORLD_RANK + 1));
+
+  auto getBounds = [&NUM_PROC, &numQueriesPerProc,
+                    &M](int rank) -> std::pair<int, int> {
+    int start = numQueriesPerProc * rank,
+        end = std::min(M, numQueriesPerProc * (rank + 1));
+    return {start, end};
+  };
+
+  const auto [start, end] = getBounds(WORLD_RANK);
 
   const int pointsPerQuery = std::min(K, N);
 
@@ -103,8 +110,7 @@ int main(int argc, char *argv[]) {
 
     // receive the nearest neighbours from other processes
     for (int i = 1; i < NUM_PROC; i++) {
-      int start = numQueriesPerProc * i,
-          end = std::min(M, numQueriesPerProc * (i + 1));
+      const auto [start, end] = getBounds(i);
       for (int j = start; j < end; j++) {
         MPI_Recv(globalNN[j].data(), pointsPerQuery * 2, MPI_INT, i, 0,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);

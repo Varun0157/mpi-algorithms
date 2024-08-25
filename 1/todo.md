@@ -1,1 +1,2 @@
-- would it be faster to only send over the relevant queries? analyse the possibility in the report. Actually, consider doing it. Feels like that would be a "purer" distsys
+- would it be faster to only send over the relevant queries? analyse the possibility in the report. Actually, consider doing it. Feels like that would be a "purer" distsys.
+  - Do it for sure: would make sense for thousands of queries

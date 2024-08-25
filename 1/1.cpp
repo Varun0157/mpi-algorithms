@@ -76,11 +76,11 @@ int main(int argc, char *argv[]) {
     auto cmp = [&query](const std::pair<double, double> &a,
                         const std::pair<double, double> &b) -> bool {
       const double distA = std::pow(a.first - query.first, 2) +
-                          std::pow(a.second - query.second, 2),
-                  distB = std::pow(b.first - query.first, 2) +
-                          std::pow(b.second - query.second, 2);
+                           std::pow(a.second - query.second, 2),
+                   distB = std::pow(b.first - query.first, 2) +
+                           std::pow(b.second - query.second, 2);
 
-      return distA < distB or (distA == distB and a < b);
+      return distA < distB or (distA == distB and a > b);
     };
     std::priority_queue<std::pair<double, double>,
                         std::vector<std::pair<double, double>>, decltype(cmp)>

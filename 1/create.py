@@ -15,7 +15,7 @@ def distance(p1, p2):
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
 
-def generate_unique_point(existing_points, max_attempts=1000):
+def generate_unique_point(existing_points, max_attempts=100):
     for _ in range(max_attempts):
         candidate = (
             round(random.uniform(*bounds), 2),
@@ -26,7 +26,7 @@ def generate_unique_point(existing_points, max_attempts=1000):
     raise ValueError("Could not generate a unique point after maximum attempts")
 
 
-def generate_distinct_point(P, existing_Q, max_attempts=1000):
+def generate_distinct_point(P, existing_Q, max_attempts=100):
     for _ in range(max_attempts):
         candidate = (
             round(random.uniform(*bounds), 2),
@@ -44,7 +44,7 @@ def generate_distinct_point(P, existing_Q, max_attempts=1000):
 
         for q in existing_Q:
             for p in P:
-                if abs(distance(candidate, p) - distance(q, p)) < 1e-4:
+                if abs(distance(candidate, p) - distance(q, p)) < 1e-5:
                     is_distinct = False
                     break
             if not is_distinct:
@@ -103,5 +103,5 @@ def generate_test_case(n, m, k):
 
 
 # Example usage
-n, m, k = 100, 5000, 100  # You can change these values as needed
+n, m, k = 1000, 1000, 850  # You can change these values as needed
 generate_test_case(n, m, k)

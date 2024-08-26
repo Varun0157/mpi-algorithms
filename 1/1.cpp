@@ -43,13 +43,9 @@ int main(int argc, char *argv[]) {
   MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  if (WORLD_RANK != 0) {
+  if (WORLD_RANK != 0)
     points.resize(N);
-    queries.resize(M);
-  }
-
   MPI_Bcast(points.data(), N * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  MPI_Bcast(queries.data(), M * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
   int numQueriesPerProc = (int)std::ceil((double)M / NUM_PROC);
@@ -61,18 +57,43 @@ int main(int argc, char *argv[]) {
     return {start, end};
   };
 
-  const auto [start, end] = getBounds(WORLD_RANK);
-
-  const int pointsPerQuery = std::min(K, N);
-
+  std::vector<std::pair<double, double>> localQueries;
   std::vector<std::vector<std::pair<double, double>>> localNN;
 
+  const auto [start, end] = getBounds(WORLD_RANK);
+  const int pointsPerQuery = std::min(K, N);
+
   if (WORLD_RANK >= NUM_PROC)
-    goto end;
+    goto finalise;
+
+  if (WORLD_RANK == 0) {
+    // broadcast the queries to the required processes
+    for (int i = 1; i < NUM_PROC; i++) {
+      const auto [qStart, qEnd] = getBounds(i);
+      std::vector<std::pair<double, double>> procQueries(
+          queries.begin() + qStart, queries.begin() + qEnd);
+      MPI_Send(procQueries.data(), procQueries.size() * 2, MPI_DOUBLE, i, 0,
+               MPI_COMM_WORLD);
+    }
+
+    localQueries = std::vector<std::pair<double, double>>(
+        queries.begin() + start, queries.begin() + end);
+    queries.clear();
+  } else {
+    localQueries.resize(end - start);
+    MPI_Recv(localQueries.data(), (end - start) * 2, MPI_DOUBLE, 0, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  }
+
+  // print the local queries
+  // std::cout << WORLD_RANK << std::endl;
+  // for (int i = 0; i < localQueries.size(); i++)
+  //   std::cout << localQueries[i].first << " " << localQueries[i].second
+  //             << std::endl;
 
   localNN.resize(end - start);
-  for (int i = start; i < end; i++) {
-    const std::pair<double, double> &query = queries[i];
+  for (int i = 0; i < localQueries.size(); i++) {
+    const std::pair<double, double> &query = localQueries[i];
     auto cmp = [&query](const std::pair<double, double> &a,
                         const std::pair<double, double> &b) -> bool {
       const double distA = std::pow(a.first - query.first, 2) +
@@ -91,7 +112,7 @@ int main(int argc, char *argv[]) {
         pq.pop();
     }
 
-    std::vector<std::pair<double, double>> &nn = localNN[i - start];
+    std::vector<std::pair<double, double>> &nn = localNN[i];
     while (!pq.empty()) {
       nn.push_back(pq.top());
       pq.pop();
@@ -112,8 +133,8 @@ int main(int argc, char *argv[]) {
 
     // receive the nearest neighbours from other processes
     for (int i = 1; i < NUM_PROC; i++) {
-      const auto [start, end] = getBounds(i);
-      for (int j = start; j < end; j++)
+      const auto [qStart, qEnd] = getBounds(i);
+      for (int j = qStart; j < qEnd; j++)
         MPI_Recv(globalNN[j].data(), pointsPerQuery * 2, MPI_DOUBLE, i, 0,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
@@ -126,7 +147,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-end:
+finalise:
   MPI_Finalize();
   return 0;
 }

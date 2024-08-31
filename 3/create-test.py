@@ -29,7 +29,7 @@ def write_files(n):
 
 
 # Set n manually here
-n = 100  # Change this value as needed
+n = 1000  # Change this value as needed
 
 write_files(n)
 print(f"Files 'random.txt' and 'random-opt.txt' have been created with {n} numbers.")

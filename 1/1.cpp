@@ -48,12 +48,13 @@ int main(int argc, char *argv[]) {
   MPI_Bcast(points.data(), N * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
-  const int QUERIES_PER_PROC = (int)std::ceil((double)M / NUM_PROC);
 
-  auto getBounds = [&NUM_PROC, &QUERIES_PER_PROC,
-                    &M](int rank) -> std::pair<int, int> {
-    int start = QUERIES_PER_PROC * rank,
-        end = std::min(M, QUERIES_PER_PROC * (rank + 1));
+  auto getBounds = [&NUM_PROC, &M](int rank) -> std::pair<int, int> {
+    const int baseItems = M / NUM_PROC;
+    const int extraItems = M % NUM_PROC;
+    const int start = baseItems * rank + std::min(rank, extraItems),
+              end = start + baseItems + (rank < extraItems ? 1 : 0);
+
     return {start, end};
   };
 

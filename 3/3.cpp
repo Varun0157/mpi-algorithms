@@ -6,7 +6,7 @@ Distributed prefix sum
 #include <iostream>
 #include <math.h>
 #include <mpi.h>
-#include <vector.h>
+#include <vector>
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -37,12 +37,13 @@ int main(int argc, char *argv[]) {
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   const int NUM_PROC = std::min(WORLD_SIZE, N);
-  const int QUERIES_PER_PROC = (int)std::ceil((double)N / NUM_PROC);
 
-  auto getBounds = [&NUM_PROC, &QUERIES_PER_PROC,
-                    &N](int rank) -> std::pair<int, int> {
-    int start = QUERIES_PER_PROC * rank,
-        end = std::min(N, QUERIES_PER_PROC * (rank + 1));
+  auto getBounds = [&NUM_PROC, &N](int rank) -> std::pair<int, int> {
+    const int baseItems = N / NUM_PROC;
+    const int extraItems = N % NUM_PROC;
+    const int start = baseItems * rank + std::min(rank, extraItems),
+              end = start + baseItems + (rank < extraItems ? 1 : 0);
+
     return {start, end};
   };
 
@@ -56,8 +57,8 @@ int main(int argc, char *argv[]) {
   if (WORLD_RANK == 0) {
     for (int i = 1; i < NUM_PROC; i++) {
       const auto [qStart, qEnd] = getBounds(i);
-      std::vector<double> numsToSend(numbers.begin() + start,
-                                     numbers.begin() + end);
+      std::vector<double> numsToSend(numbers.begin() + qStart,
+                                     numbers.begin() + qEnd);
       MPI_Send(numsToSend.data(), numsToSend.size(), MPI_DOUBLE, i, 0,
                MPI_COMM_WORLD);
     }
@@ -75,11 +76,16 @@ int main(int argc, char *argv[]) {
   for (int i = 1; i < localNums.size(); i++)
     localNums[i] += localNums[i - 1];
 
-  int prefixWeight = 0;
   if (WORLD_RANK != 0) {
-    MPI_Send(&localNums.back(), 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+    double last = localNums.back();
+    MPI_Send(&last, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+
+    double prefixWeight = 0;
     MPI_Recv(&prefixWeight, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD,
              MPI_STATUS_IGNORE);
+
+    for (int i = 0; i < localNums.size(); i++)
+      localNums[i] += prefixWeight;
   } else {
     std::vector<double> closingNums(NUM_PROC);
     closingNums[0] = localNums.back();
@@ -96,9 +102,6 @@ int main(int argc, char *argv[]) {
       MPI_Send(&closingNums[i - 1], 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
   }
 
-  for (int i = 0; i < localNums.size(); i++)
-    localNums[i] += prefixWeight;
-
   if (WORLD_RANK != 0) {
     MPI_Send(localNums.data(), localNums.size(), MPI_DOUBLE, 0, 0,
              MPI_COMM_WORLD);
@@ -114,7 +117,8 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < globalNums.size(); i++)
-      std::cout << globalNums[i] << std::endl;
+      std::cout << globalNums[i] << " ";
+    std::cout << std::endl;
   }
 
 finalise:

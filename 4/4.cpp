@@ -10,13 +10,6 @@ Parallel matrix inverse using row reduction method and MPI
 #include <mpi.h>
 #include <vector>
 
-void printVector(const std::vector<double> &vec) {
-  for (const auto &el : vec) {
-    std::cout << el << " ";
-  }
-  std::cout << std::endl;
-}
-
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
@@ -82,7 +75,6 @@ int main(int argc, char *argv[]) {
     goto finalise;
 
   // SEND THE DATA
-
   if (WORLD_RANK == 0) {
     for (int i = 1; i < NUM_PROC; i++) {
       const auto [qStart, qEnd] = getBounds(i);
@@ -102,6 +94,9 @@ int main(int argc, char *argv[]) {
       localMatrix[i] = matrix[start + i];
       localIdentity[i] = identity[start + i];
     }
+
+    matrix.clear();
+    identity.clear();
   } else {
     localMatrix.resize(end - start);
     localIdentity.resize(end - start);
@@ -139,15 +134,10 @@ int main(int argc, char *argv[]) {
           std::vector<double> matrixRow(N), identityRow(N);
           for (int j = RANK + 1; j < NUM_PROC; j++) {
             // send localMatrix[localIndex] and localIdentity[localIndex] to j
-            std::vector<double> matrixRowToSend = localMatrix[localIndex],
-                                identityRowToSend = localIdentity[localIndex];
-            MPI_Send(matrixRowToSend.data(), N, MPI_DOUBLE, j, 1,
+            MPI_Send(localMatrix[localIndex].data(), N, MPI_DOUBLE, j, 1,
                      MPI_COMM_WORLD);
-            MPI_Send(identityRowToSend.data(), N, MPI_DOUBLE, j, 1,
+            MPI_Send(localIdentity[localIndex].data(), N, MPI_DOUBLE, j, 1,
                      MPI_COMM_WORLD);
-            // std::cout << "sending " << std::endl;
-            // printVector(matrixRowToSend);
-            // printVector(identityRowToSend);
 
             // read the status of the Recv
             MPI_Status status;
@@ -157,12 +147,6 @@ int main(int argc, char *argv[]) {
                      MPI_COMM_WORLD, &status);
             if (status.MPI_TAG != 1)
               continue;
-
-            // set row as our new localIndex pivot row
-            // std::cout << "setting row " << localIndex + start << " as pivot"
-            //           << std::endl;
-            // printVector(matrixRow);
-            // printVector(identityRow);
 
             localMatrix[localIndex] = matrixRow;
             localIdentity[localIndex] = identityRow;
@@ -213,11 +197,9 @@ int main(int argc, char *argv[]) {
         for (int row = 0; !found and row < localMatrix.size(); row++) {
           if (localMatrix[row][i] == 0)
             continue;
-          std::vector<double> matrixRowToSend = localMatrix[row],
-                              identityRowToSend = localIdentity[row];
-          MPI_Send(matrixRowToSend.data(), N, MPI_DOUBLE, RANK, 1,
+          MPI_Send(localMatrix[row].data(), N, MPI_DOUBLE, RANK, 1,
                    MPI_COMM_WORLD);
-          MPI_Send(identityRowToSend.data(), N, MPI_DOUBLE, RANK, 1,
+          MPI_Send(localIdentity[row].data(), N, MPI_DOUBLE, RANK, 1,
                    MPI_COMM_WORLD);
           localMatrix[row] = pivotRow;
           localIdentity[row] = pivotIdentity;
@@ -287,12 +269,15 @@ int main(int argc, char *argv[]) {
   }
 
   // bring back the results to the root process
-  if (WORLD_RANK != 0 && WORLD_RANK < NUM_PROC) {
+  if (WORLD_RANK != 0) {
     for (int i = 0; i < localMatrix.size(); i++) {
       MPI_Send(localMatrix[i].data(), N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
       MPI_Send(localIdentity[i].data(), N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
     }
   } else if (WORLD_RANK < NUM_PROC) {
+    matrix.resize(N);
+    identity.resize(N);
+
     for (int i = 0; i < localMatrix.size(); i++) {
       matrix[start + i] = localMatrix[i];
       identity[start + i] = localIdentity[i];
@@ -301,8 +286,10 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < NUM_PROC; i++) {
       const auto [qStart, qEnd] = getBounds(i);
       for (int j = qStart; j < qEnd; j++) {
+        matrix[j].resize(N);
         MPI_Recv(matrix[j].data(), N, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
                  MPI_STATUS_IGNORE);
+        identity[j].resize(N);
         MPI_Recv(identity[j].data(), N, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
                  MPI_STATUS_IGNORE);
       }

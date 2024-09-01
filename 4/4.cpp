@@ -154,25 +154,25 @@ int main(int argc, char *argv[]) {
   }
 
   // back substitution phase
-  for (int col = N - 1; col >= 0; col--) {
-    const int RANK = findRank(col);
+  for (int zCol = N - 1; zCol >= 0; zCol--) {
+    const int RANK = findRank(zCol);
 
     if (RANK == WORLD_RANK) {
-      const int localIndex = col - start;
+      const int localZCol = zCol - start;
 
-      for (int row = localIndex - 1; row >= 0; row--) {
-        const double factor = localMatrix[row][col];
-        for (int j = 0; j < N; j++) {
-          localMatrix[row][j] -= factor * localMatrix[localIndex][j];
-          localIdentity[row][j] -= factor * localMatrix[localIndex][j];
+      for (int row = localZCol - 1; row >= 0; row--) {
+        const double factor = localMatrix[row][zCol];
+        for (int col = 0; col < N; col++) {
+          localMatrix[row][col] -= factor * localMatrix[localZCol][col];
+          localIdentity[row][col] -= factor * localIdentity[localZCol][col];
         }
       }
 
       // send the entire pivot rows to the other processes
       for (int j = RANK - 1; j >= 0; j--) {
-        MPI_Send(localMatrix[localIndex].data(), N, MPI_DOUBLE, j, 0,
+        MPI_Send(localMatrix[localZCol].data(), N, MPI_DOUBLE, j, 0,
                  MPI_COMM_WORLD);
-        MPI_Send(localIdentity[localIndex].data(), N, MPI_DOUBLE, j, 0,
+        MPI_Send(localIdentity[localZCol].data(), N, MPI_DOUBLE, j, 0,
                  MPI_COMM_WORLD);
       }
     } else if (WORLD_RANK < RANK) {
@@ -183,10 +183,10 @@ int main(int argc, char *argv[]) {
                MPI_STATUS_IGNORE);
 
       for (int row = localMatrix.size() - 1; row >= 0; row--) {
-        const double factor = matrix[row][col];
-        for (int col = 0; col < N; col++) {
-          localMatrix[row][col] -= factor * pivotRow[col];
-          localIdentity[row][col] -= factor * pivotIdentity[col];
+        const double factor = localMatrix[row][zCol];
+        for (int j = 0; j < N; j++) {
+          localMatrix[row][j] -= factor * pivotRow[j];
+          localIdentity[row][j] -= factor * pivotIdentity[j];
         }
       }
     }

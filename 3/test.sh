@@ -14,5 +14,5 @@ fi
 for num in {1..12}
 do
     echo $num 
-    bash ../test-file.sh "mpiexec -n ${num} ./a.out random.txt" "random-opt.txt"
+    bash ../test.sh "mpiexec -n ${num} ./a.out random.txt" "random-opt.txt"
 done

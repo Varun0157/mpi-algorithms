@@ -2,6 +2,7 @@
 Distributed prefix sum
 */
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <math.h>
@@ -33,6 +34,10 @@ int main(int argc, char *argv[]) {
     for (double &number : numbers)
       input >> number;
   }
+
+  std::chrono::steady_clock::time_point beginTime =
+                                            std::chrono::steady_clock::now(),
+                                        endTime;
 
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -114,6 +119,17 @@ int main(int argc, char *argv[]) {
       MPI_Recv(globalNums.data() + qStart, qEnd - qStart, MPI_DOUBLE, i, 0,
                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
+
+    endTime = std::chrono::steady_clock::now();
+
+    std::string fileName =
+        std::to_string(N) + "_time-" + std::to_string(WORLD_SIZE) + ".txt";
+
+    std::ofstream output(fileName);
+    output << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
+                                                                   beginTime)
+                  .count()
+           << std::endl;
 
     for (int i = 0; i < globalNums.size(); i++)
       std::cout << globalNums[i] << " ";

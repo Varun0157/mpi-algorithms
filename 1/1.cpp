@@ -86,12 +86,6 @@ int main(int argc, char *argv[]) {
              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   }
 
-  // print the local queries
-  // std::cout << WORLD_RANK << std::endl;
-  // for (int i = 0; i < localQueries.size(); i++)
-  //   std::cout << localQueries[i].first << " " << localQueries[i].second
-  //             << std::endl;
-
   localNN.resize(end - start);
   for (int i = 0; i < localQueries.size(); i++) {
     const std::pair<double, double> &query = localQueries[i];

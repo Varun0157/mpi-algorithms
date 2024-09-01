@@ -3,6 +3,7 @@ Parallel matrix inverse using row reduction method and MPI
 */
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
@@ -42,6 +43,10 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+
+  std::chrono::time_point<std::chrono::system_clock>
+      beginTime = std::chrono::system_clock::now(),
+      endTime;
 
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -271,29 +276,39 @@ int main(int argc, char *argv[]) {
   // bring back the results to the root process
   if (WORLD_RANK != 0) {
     for (int i = 0; i < localMatrix.size(); i++) {
-      MPI_Send(localMatrix[i].data(), N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+      // MPI_Send(localMatrix[i].data(), N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
       MPI_Send(localIdentity[i].data(), N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
     }
   } else if (WORLD_RANK < NUM_PROC) {
-    matrix.resize(N);
+    // matrix.resize(N);
     identity.resize(N);
 
     for (int i = 0; i < localMatrix.size(); i++) {
-      matrix[start + i] = localMatrix[i];
+      // matrix[start + i] = localMatrix[i];
       identity[start + i] = localIdentity[i];
     }
 
     for (int i = 1; i < NUM_PROC; i++) {
       const auto [qStart, qEnd] = getBounds(i);
       for (int j = qStart; j < qEnd; j++) {
-        matrix[j].resize(N);
-        MPI_Recv(matrix[j].data(), N, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
-                 MPI_STATUS_IGNORE);
+        // matrix[j].resize(N);
+        // MPI_Recv(matrix[j].data(), N, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
+        //          MPI_STATUS_IGNORE);
         identity[j].resize(N);
         MPI_Recv(identity[j].data(), N, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
                  MPI_STATUS_IGNORE);
       }
     }
+
+    endTime = std::chrono::system_clock::now();
+
+    std::string fileName =
+        std::to_string(N) + "_time-" + std::to_string(WORLD_SIZE) + ".txt";
+    std::ofstream output(fileName);
+    output << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
+                                                                   beginTime)
+                  .count()
+           << std::endl;
 
     std::cout << std::fixed << std::setprecision(2) << std::showpoint;
 

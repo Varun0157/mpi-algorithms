@@ -77,8 +77,7 @@ int main(int argc, char *argv[]) {
     localNums[i] += localNums[i - 1];
 
   if (WORLD_RANK != 0) {
-    double last = localNums.back();
-    MPI_Send(&last, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+    MPI_Send(&localNums.back(), 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 
     double prefixWeight = 0;
     MPI_Recv(&prefixWeight, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD,

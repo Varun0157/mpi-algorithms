@@ -4,7 +4,7 @@
 mpicxx 3.cpp
 
 # create a random test case
-python create-test.py
+python create.py
 if [ $? -ne 0 ]; then
     echo "failed to create test case"
     exit 1
@@ -14,5 +14,5 @@ fi
 for num in {1..12}
 do
     echo $num 
-    bash ../test.sh "mpiexec -n ${num} ./a.out random.txt" "random-opt.txt"
+    bash ../test-file.sh "mpiexec -n ${num} ./a.out random.txt" "random-opt.txt"
 done

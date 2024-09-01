@@ -5,9 +5,17 @@ Parallel matrix inverse using row reduction method and MPI
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <mpi.h>
 #include <vector>
+
+void printVector(const std::vector<double> &vec) {
+  for (const auto &el : vec) {
+    std::cout << el << " ";
+  }
+  std::cout << std::endl;
+}
 
 int main(int argc, char *argv[]) {
   //   if (argc != 2) {
@@ -58,7 +66,6 @@ int main(int argc, char *argv[]) {
     const int baseItems = N / NUM_PROC;
     const int extraItems = N % NUM_PROC;
 
-    // Determine the rank
     int rank = (index < (baseItems + 1) * extraItems)
                    ? index / (baseItems + 1)
                    : (index - extraItems) / baseItems;
@@ -115,7 +122,58 @@ int main(int argc, char *argv[]) {
     if (RANK == WORLD_RANK) {
       const int localIndex = i - start;
 
-      const double pivot = localMatrix[localIndex][i];
+      if (localMatrix[localIndex][i] == 0) {
+        // find a further row with non-zero pivot
+        for (int j = localIndex + 1; j < localMatrix.size(); j++) {
+          if (localMatrix[j][i] == 0)
+            continue;
+          std::swap(localMatrix[localIndex], localMatrix[j]);
+          std::swap(localIdentity[localIndex], localIdentity[j]);
+          break;
+        }
+
+        // search in other processes if required
+        if (localMatrix[localIndex][i] == 0) {
+          std::vector<double> matrixRow(N), identityRow(N);
+          for (int j = RANK + 1; j < NUM_PROC; j++) {
+            // send localMatrix[localIndex] and localIdentity[localIndex] to j
+            std::vector<double> matrixRowToSend = localMatrix[localIndex],
+                                identityRowToSend = localIdentity[localIndex];
+            MPI_Send(matrixRowToSend.data(), N, MPI_DOUBLE, j, 1,
+                     MPI_COMM_WORLD);
+            MPI_Send(identityRowToSend.data(), N, MPI_DOUBLE, j, 1,
+                     MPI_COMM_WORLD);
+            // std::cout << "sending " << std::endl;
+            // printVector(matrixRowToSend);
+            // printVector(identityRowToSend);
+
+            // read the status of the Recv
+            MPI_Status status;
+            MPI_Recv(matrixRow.data(), N, MPI_DOUBLE, j, MPI_ANY_TAG,
+                     MPI_COMM_WORLD, &status);
+            MPI_Recv(identityRow.data(), N, MPI_DOUBLE, j, MPI_ANY_TAG,
+                     MPI_COMM_WORLD, &status);
+            if (status.MPI_TAG != 1)
+              continue;
+
+            // set row as our new localIndex pivot row
+            // std::cout << "setting row " << localIndex + start << " as pivot"
+            //           << std::endl;
+            // printVector(matrixRow);
+            // printVector(identityRow);
+
+            localMatrix[localIndex] = matrixRow;
+            localIdentity[localIndex] = identityRow;
+          }
+        }
+      }
+
+      double pivot = localMatrix[localIndex][i];
+      if (pivot == 0) {
+        std::cerr << "matrix is not invertible" << std::endl;
+        goto finalise;
+      }
+
       for (int j = 0; j < N; j++) {
         localMatrix[localIndex][j] /= pivot;
         localIdentity[localIndex][j] /= pivot;
@@ -129,7 +187,8 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      // send the entire pivot rows to the other processes
+      // send the entire pivot rows to the other processes, so they can reduce
+      // their values accordingly
       for (int j = RANK + 1; j < NUM_PROC; j++) {
         MPI_Send(localMatrix[localIndex].data(), N, MPI_DOUBLE, j, 0,
                  MPI_COMM_WORLD);
@@ -137,11 +196,44 @@ int main(int argc, char *argv[]) {
                  MPI_COMM_WORLD);
       }
     } else if (WORLD_RANK > RANK) {
+      MPI_Status status;
       std::vector<double> pivotRow(N), pivotIdentity(N);
-      MPI_Recv(pivotRow.data(), N, MPI_DOUBLE, RANK, 0, MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
-      MPI_Recv(pivotIdentity.data(), N, MPI_DOUBLE, RANK, 0, MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
+      MPI_Probe(RANK, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+      if (status.MPI_TAG == 1) {
+        MPI_Recv(pivotRow.data(), N, MPI_DOUBLE, RANK, 1, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+        MPI_Recv(pivotIdentity.data(), N, MPI_DOUBLE, RANK, 1, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+
+        // check if we have a row with A_xi != 0, and return if present
+        bool found = false;
+        for (int row = 0; !found and row < localMatrix.size(); row++) {
+          if (localMatrix[row][i] == 0)
+            continue;
+          std::vector<double> matrixRowToSend = localMatrix[row],
+                              identityRowToSend = localIdentity[row];
+          MPI_Send(matrixRowToSend.data(), N, MPI_DOUBLE, RANK, 1,
+                   MPI_COMM_WORLD);
+          MPI_Send(identityRowToSend.data(), N, MPI_DOUBLE, RANK, 1,
+                   MPI_COMM_WORLD);
+          localMatrix[row] = pivotRow;
+          localIdentity[row] = pivotIdentity;
+          found = true;
+        }
+
+        if (!found) {
+          MPI_Send(pivotRow.data(), N, MPI_DOUBLE, RANK, 0, MPI_COMM_WORLD);
+          MPI_Send(pivotIdentity.data(), N, MPI_DOUBLE, RANK, 0,
+                   MPI_COMM_WORLD);
+        }
+      }
+
+    reduceValues:
+      MPI_Recv(pivotRow.data(), N, MPI_DOUBLE, RANK, MPI_ANY_TAG,
+               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(pivotIdentity.data(), N, MPI_DOUBLE, RANK, MPI_ANY_TAG,
+               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
       for (int row = 0; row < localMatrix.size(); row++) {
         const double factor = localMatrix[row][i];
@@ -214,10 +306,12 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    std::cout << std::fixed << std::setprecision(2) << std::showpoint;
+
     for (int i = 0; i < N; i++) {
-      for (int j = 0; j < N; j++) {
-        std::cout << matrix[i][j] << " ";
-      }
+      // for (int j = 0; j < N; j++) {
+      //   std::cout << matrix[i][j] << " ";
+      // }
       for (int j = 0; j < N; j++)
         std::cout << identity[i][j] << " ";
       std::cout << std::endl;

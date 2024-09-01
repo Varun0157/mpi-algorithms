@@ -18,10 +18,10 @@ void printVector(const std::vector<double> &vec) {
 }
 
 int main(int argc, char *argv[]) {
-  //   if (argc != 2) {
-  //     std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
-  //     return 1;
-  //   }
+  if (argc != 2) {
+    std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
+    return 1;
+  }
 
   MPI_Init(&argc, &argv);
 
@@ -34,7 +34,9 @@ int main(int argc, char *argv[]) {
   int N;
   std::vector<std::vector<double>> matrix, identity;
   if (WORLD_RANK == 0) {
-    std::cin >> N;
+    std::ifstream input(argv[1]);
+
+    input >> N;
 
     matrix.resize(N);
     identity.resize(N);
@@ -42,7 +44,7 @@ int main(int argc, char *argv[]) {
       matrix[i].resize(N);
       identity[i].resize(N);
       for (int j = 0; j < N; j++) {
-        std::cin >> matrix[i][j];
+        input >> matrix[i][j];
         identity[i][j] = (double)i == j;
       }
     }

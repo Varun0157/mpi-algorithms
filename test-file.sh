@@ -11,17 +11,14 @@ TEMP_OUTPUT_FILE=$(mktemp)
 
 # Run the program and redirect its output to the temporary file
 # echo the time 
-start=`date +%s%N`
 $PROGRAM > $TEMP_OUTPUT_FILE
-end=`date +%s%N`
-echo execution time : `expr $end - $start` nanoseconds.
 
 # Compare the temporary output file with the known output file
 if diff -q "$TEMP_OUTPUT_FILE" "$KNOWN_OUTPUT_FILE" > /dev/null; then
     echo "pass"
 else
     echo "FAIL"
-    diff "$TEMP_OUTPUT_FILE" "$KNOWN_OUTPUT_FILE"
+    # diff "$TEMP_OUTPUT_FILE" "$KNOWN_OUTPUT_FILE"
 fi
 
 # Clean up the temporary file

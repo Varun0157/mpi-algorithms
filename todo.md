@@ -1,2 +1,1 @@
 - look into the bounds checking code again, is there a better way to do it? 
-- for benchmarking: write the times to a file maybe? Can't write to stdout or it would get mixed with the code itself. 

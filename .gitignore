@@ -1,3 +1,4 @@
 .vscode
 */*.out
 */random*.txt
+*/*time*.txt

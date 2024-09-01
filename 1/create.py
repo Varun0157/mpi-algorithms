@@ -103,5 +103,5 @@ def generate_test_case(n, m, k):
 
 
 # Example usage
-n, m, k = 1000, 1000, 850  # You can change these values as needed
+n, m, k = 500, 750, 450  # You can change these values as needed
 generate_test_case(n, m, k)

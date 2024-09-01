@@ -3,6 +3,7 @@ Distributed K Nearest Neighbours
 */
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <math.h>
@@ -38,6 +39,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < M; i++)
       input >> queries[i].first >> queries[i].second;
   }
+
+  std::chrono::steady_clock::time_point beginTime =
+                                            std::chrono::steady_clock::now(),
+                                        endTime;
 
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -133,6 +138,19 @@ int main(int argc, char *argv[]) {
         MPI_Recv(globalNN[j].data(), pointsPerQuery * 2, MPI_DOUBLE, i, 0,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
+
+    endTime = std::chrono::steady_clock::now();
+
+    // create a file named {N}_{M}_{K}_output-{WORLD_SIZE}.txt
+
+    std::string fileName = std::to_string(N) + "_" + std::to_string(M) + "_" +
+                           std::to_string(K) + "_time-" +
+                           std::to_string(WORLD_SIZE) + ".txt";
+    std::ofstream output(fileName);
+    output << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
+                                                                   beginTime)
+                  .count()
+           << std::endl;
 
     // print out the nearest neighbours
     for (int i = 0; i < M; i++) {

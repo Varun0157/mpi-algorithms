@@ -29,6 +29,10 @@ int main(int argc, char *argv[]) {
   std::vector<std::vector<double>> matrix, identity;
   if (WORLD_RANK == 0) {
     std::ifstream input(argv[1]);
+    if (!input) {
+      std::cerr << "Error opening file!" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     input >> N;
 
@@ -42,6 +46,8 @@ int main(int argc, char *argv[]) {
         identity[i][j] = (double)i == j;
       }
     }
+
+    input.close();
   }
 
   std::chrono::time_point<std::chrono::system_clock>

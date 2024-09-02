@@ -116,11 +116,9 @@ int main(int argc, char *argv[]) {
   }
 
   // perform gaussian elimination
-  // todo: implement rule 1 of swapping rows
   for (int i = 0; i < N; i++) {
     const int RANK = findRank(i);
 
-    // divide by Aii and subtract further rows. Assuming Aii != 0 for now.
     if (RANK == WORLD_RANK) {
       const int localIndex = i - start;
 
@@ -145,6 +143,7 @@ int main(int argc, char *argv[]) {
                      MPI_COMM_WORLD);
 
             // read the status of the Recv
+            // if it is 1, then we have found a row.
             MPI_Status status;
             MPI_Recv(matrixRow.data(), N, MPI_DOUBLE, j, MPI_ANY_TAG,
                      MPI_COMM_WORLD, &status);

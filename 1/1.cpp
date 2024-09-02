@@ -29,6 +29,10 @@ int main(int argc, char *argv[]) {
   std::vector<std::pair<double, double>> points, queries;
   if (WORLD_RANK == 0) {
     std::ifstream input(argv[1]);
+    if (!input) {
+      std::cerr << "error opening file" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     input >> N >> M >> K;
 
@@ -38,6 +42,8 @@ int main(int argc, char *argv[]) {
     queries.resize(M);
     for (int i = 0; i < M; i++)
       input >> queries[i].first >> queries[i].second;
+
+    input.close();
   }
 
   std::chrono::steady_clock::time_point beginTime =

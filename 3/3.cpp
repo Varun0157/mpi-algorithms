@@ -27,12 +27,18 @@ int main(int argc, char *argv[]) {
   std::vector<double> numbers;
   if (WORLD_RANK == 0) {
     std::ifstream input(argv[1]);
+    if (!input) {
+      std::cerr << "error opening file" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     input >> N;
 
     numbers.resize(N);
     for (double &number : numbers)
       input >> number;
+    
+    input.close();
   }
 
   std::chrono::steady_clock::time_point beginTime =

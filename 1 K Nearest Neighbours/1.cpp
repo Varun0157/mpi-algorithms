@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
   if (WORLD_RANK >= NUM_PROC)
     goto finalise;
 
-  // gather local queries for each process to handle 
+  // gather local queries for each process to handle
   if (WORLD_RANK == 0) {
     sendLocalQueries(queries, NUM_PROC, M, 0);
 
@@ -179,9 +179,9 @@ int main(int argc, char *argv[]) {
 
     endTime = std::chrono::steady_clock::now();
 
-    // create a file named {N}_{M}_{K}_output-{WORLD_SIZE}.txt
+    // create a file named {N}_{M}_{K}_time.txt
     std::string fileName = std::to_string(N) + "_" + std::to_string(M) + "_" +
-                           std::to_string(K) + "_time-" + ".txt";
+                           std::to_string(K) + "_time.txt";
     std::ofstream output(fileName, std::ios::app);
     output << WORLD_SIZE << ":"
            << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -

@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
                                             std::chrono::steady_clock::now(),
                                         endTime;
 
+  // broadcast N, M, K and all points to all processes
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -139,6 +140,7 @@ int main(int argc, char *argv[]) {
   if (WORLD_RANK >= NUM_PROC)
     goto finalise;
 
+  // gather local queries for each process to handle 
   if (WORLD_RANK == 0) {
     sendLocalQueries(queries, NUM_PROC, M, 0);
 
@@ -154,6 +156,7 @@ int main(int argc, char *argv[]) {
   localNN = getLocalNearestNeighbours(points, localQueries, start, end,
                                       pointsPerQuery);
 
+  // send and accumulate local nearest neighbours at rank 0
   if (WORLD_RANK != 0) {
     for (int i = 0; i < localNN.size(); i++)
       MPI_Send(localNN[i].data(), pointsPerQuery * 2, MPI_DOUBLE, 0, 0,

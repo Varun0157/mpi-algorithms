@@ -4,16 +4,35 @@ Distributed prefix sum
 
 #include <chrono>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <math.h>
 #include <mpi.h>
 #include <vector>
+
+void getNumbers(const char *filename, int &N, std::vector<double> &numbers) {
+  std::ifstream input(filename);
+  if (!input) {
+    std::cerr << "error opening file" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+
+  input >> N;
+
+  numbers.resize(N);
+  for (double &number : numbers)
+    input >> number;
+
+  input.close();
+}
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
     return 1;
   }
+
+  std::cout << std::setprecision(10);
 
   MPI_Init(&argc, &argv);
 
@@ -26,25 +45,14 @@ int main(int argc, char *argv[]) {
   int N;
   std::vector<double> numbers;
   if (WORLD_RANK == 0) {
-    std::ifstream input(argv[1]);
-    if (!input) {
-      std::cerr << "error opening file" << std::endl;
-      MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-
-    input >> N;
-
-    numbers.resize(N);
-    for (double &number : numbers)
-      input >> number;
-    
-    input.close();
+    getNumbers(argv[1], N, numbers);
   }
 
   std::chrono::steady_clock::time_point beginTime =
                                             std::chrono::steady_clock::now(),
                                         endTime;
 
+  // broadcast the number of elements to all processes
   MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   const int NUM_PROC = std::min(WORLD_SIZE, N);
@@ -65,6 +73,7 @@ int main(int argc, char *argv[]) {
   if (WORLD_RANK >= NUM_PROC)
     goto finalise;
 
+  // store local numbers for each process to handle
   if (WORLD_RANK == 0) {
     for (int i = 1; i < NUM_PROC; i++) {
       const auto [qStart, qEnd] = getBounds(i);
@@ -87,6 +96,8 @@ int main(int argc, char *argv[]) {
   for (int i = 1; i < localNums.size(); i++)
     localNums[i] += localNums[i - 1];
 
+  // send closing values to rank 0
+  // in rank 0, find values to add for remaining processes
   if (WORLD_RANK != 0) {
     MPI_Send(&localNums.back(), 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 
@@ -112,6 +123,7 @@ int main(int argc, char *argv[]) {
       MPI_Send(&closingNums[i - 1], 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
   }
 
+  // send the localNums back to rank 0 and accumulate
   if (WORLD_RANK != 0) {
     MPI_Send(localNums.data(), localNums.size(), MPI_DOUBLE, 0, 0,
              MPI_COMM_WORLD);
@@ -128,11 +140,11 @@ int main(int argc, char *argv[]) {
 
     endTime = std::chrono::steady_clock::now();
 
-    std::string fileName =
-        std::to_string(N) + "_time-" + std::to_string(WORLD_SIZE) + ".txt";
+    std::string fileName = std::to_string(N) + "_time.txt";
 
-    std::ofstream output(fileName);
-    output << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
+    std::ofstream output(fileName, std::ios::app);
+    output << WORLD_SIZE << ":"
+           << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
                                                                    beginTime)
                   .count()
            << std::endl;

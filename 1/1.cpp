@@ -5,99 +5,51 @@ Distributed K Nearest Neighbours
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <math.h>
 #include <mpi.h>
 #include <queue>
 #include <vector>
 
-int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
-    return 1;
+void getPointsAndQueries(const char *filename, int &N, int &M, int &K,
+                         std::vector<std::pair<double, double>> &points,
+                         std::vector<std::pair<double, double>> &queries) {
+  std::ifstream input(filename);
+  if (!input) {
+    std::cerr << "error opening file" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  MPI_Init(&argc, &argv);
+  input >> N >> M >> K;
 
-  int WORLD_SIZE;
-  MPI_Comm_size(MPI_COMM_WORLD, &WORLD_SIZE);
-
-  int WORLD_RANK;
-  MPI_Comm_rank(MPI_COMM_WORLD, &WORLD_RANK);
-
-  int N, M, K;
-  std::vector<std::pair<double, double>> points, queries;
-  if (WORLD_RANK == 0) {
-    std::ifstream input(argv[1]);
-    if (!input) {
-      std::cerr << "error opening file" << std::endl;
-      MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-
-    input >> N >> M >> K;
-
-    points.resize(N);
-    for (int i = 0; i < N; i++)
-      input >> points[i].first >> points[i].second;
-    queries.resize(M);
-    for (int i = 0; i < M; i++)
-      input >> queries[i].first >> queries[i].second;
-
-    input.close();
+  points.resize(N);
+  for (int i = 0; i < N; i++) {
+    double x, y;
+    input >> x >> y;
+    points[i] = {x, y};
   }
+  queries.resize(M);
+  for (int i = 0; i < M; i++)
+    input >> queries[i].first >> queries[i].second;
 
-  std::chrono::steady_clock::time_point beginTime =
-                                            std::chrono::steady_clock::now(),
-                                        endTime;
+  input.close();
+}
 
-  MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
+std::pair<int, int> getBounds(int rank, int NUM_PROC, int M) {
+  const int baseItems = M / NUM_PROC;
+  const int extraItems = M % NUM_PROC;
+  const int start = baseItems * rank + std::min(rank, extraItems),
+            end = start + baseItems + (rank < extraItems ? 1 : 0);
 
-  if (WORLD_RANK != 0)
-    points.resize(N);
-  MPI_Bcast(points.data(), N * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  return {start, end};
+}
 
-  const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
-
-  auto getBounds = [&NUM_PROC, &M](int rank) -> std::pair<int, int> {
-    const int baseItems = M / NUM_PROC;
-    const int extraItems = M % NUM_PROC;
-    const int start = baseItems * rank + std::min(rank, extraItems),
-              end = start + baseItems + (rank < extraItems ? 1 : 0);
-
-    return {start, end};
-  };
-
-  std::vector<std::pair<double, double>> localQueries;
-  std::vector<std::vector<std::pair<double, double>>> localNN;
-
-  const auto [start, end] = getBounds(WORLD_RANK);
-  const int pointsPerQuery = std::min(K, N);
-
-  if (WORLD_RANK >= NUM_PROC)
-    goto finalise;
-
-  if (WORLD_RANK == 0) {
-    // broadcast the queries to the required processes
-    for (int i = 1; i < NUM_PROC; i++) {
-      const auto [qStart, qEnd] = getBounds(i);
-      std::vector<std::pair<double, double>> procQueries(
-          queries.begin() + qStart, queries.begin() + qEnd);
-      MPI_Send(procQueries.data(), procQueries.size() * 2, MPI_DOUBLE, i, 0,
-               MPI_COMM_WORLD);
-    }
-
-    localQueries = std::vector<std::pair<double, double>>(
-        queries.begin() + start, queries.begin() + end);
-    queries.clear();
-  } else {
-    localQueries.resize(end - start);
-    MPI_Recv(localQueries.data(), (end - start) * 2, MPI_DOUBLE, 0, 0,
-             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  }
-
-  localNN.resize(end - start);
+std::vector<std::vector<std::pair<double, double>>>
+getLocalNearestNeighbours(std::vector<std::pair<double, double>> &points,
+                          std::vector<std::pair<double, double>> &localQueries,
+                          int start, int end, int pointsPerQuery) {
+  std::vector<std::vector<std::pair<double, double>>> localNN(end - start);
   for (int i = 0; i < localQueries.size(); i++) {
     const std::pair<double, double> &query = localQueries[i];
     auto cmp = [&query](const std::pair<double, double> &a,
@@ -125,6 +77,83 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  return localNN;
+}
+
+void sendLocalQueries(std::vector<std::pair<double, double>> &queries,
+                      const int NUM_PROC, const int M, const int PARENT_RANK) {
+  for (int i = 0; i < NUM_PROC; i++) {
+    if (i == PARENT_RANK)
+      continue;
+
+    const auto [qStart, qEnd] = getBounds(i, NUM_PROC, M);
+    std::vector<std::pair<double, double>> procQueries(queries.begin() + qStart,
+                                                       queries.begin() + qEnd);
+    MPI_Send(procQueries.data(), procQueries.size() * 2, MPI_DOUBLE, i, 0,
+             MPI_COMM_WORLD);
+  }
+}
+
+int main(int argc, char *argv[]) {
+  if (argc != 2) {
+    std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
+    return 1;
+  }
+
+  std::cout << std::setprecision(10);
+
+  MPI_Init(&argc, &argv);
+
+  int WORLD_SIZE;
+  MPI_Comm_size(MPI_COMM_WORLD, &WORLD_SIZE);
+
+  int WORLD_RANK;
+  MPI_Comm_rank(MPI_COMM_WORLD, &WORLD_RANK);
+
+  int N, M, K;
+  std::vector<std::pair<double, double>> points, queries;
+  if (WORLD_RANK == 0) {
+    getPointsAndQueries(argv[1], N, M, K, points, queries);
+  }
+
+  std::chrono::steady_clock::time_point beginTime =
+                                            std::chrono::steady_clock::now(),
+                                        endTime;
+
+  MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  if (WORLD_RANK != 0)
+    points.resize(N);
+  MPI_Bcast(points.data(), N * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
+
+  std::vector<std::pair<double, double>> localQueries;
+  std::vector<std::vector<std::pair<double, double>>> localNN;
+
+  const auto [start, end] = getBounds(WORLD_RANK, NUM_PROC, M);
+  const int pointsPerQuery = std::min(K, N);
+
+  if (WORLD_RANK >= NUM_PROC)
+    goto finalise;
+
+  if (WORLD_RANK == 0) {
+    sendLocalQueries(queries, NUM_PROC, M, 0);
+
+    localQueries = std::vector<std::pair<double, double>>(
+        queries.begin() + start, queries.begin() + end);
+    queries.clear();
+  } else {
+    localQueries.resize(end - start);
+    MPI_Recv(localQueries.data(), (end - start) * 2, MPI_DOUBLE, 0, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  }
+
+  localNN = getLocalNearestNeighbours(points, localQueries, start, end,
+                                      pointsPerQuery);
+
   if (WORLD_RANK != 0) {
     for (int i = 0; i < localNN.size(); i++)
       MPI_Send(localNN[i].data(), pointsPerQuery * 2, MPI_DOUBLE, 0, 0,
@@ -133,13 +162,13 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<std::pair<double, double>>> globalNN(
         M, std::vector<std::pair<double, double>>(pointsPerQuery));
 
-    // push the current local nearest neighbours
+    // push the current local nearest neighbours (rank 0)
     for (int i = 0; i < localNN.size(); i++)
       globalNN[i] = localNN[i];
 
     // receive the nearest neighbours from other processes
     for (int i = 1; i < NUM_PROC; i++) {
-      const auto [qStart, qEnd] = getBounds(i);
+      const auto [qStart, qEnd] = getBounds(i, NUM_PROC, M);
       for (int j = qStart; j < qEnd; j++)
         MPI_Recv(globalNN[j].data(), pointsPerQuery * 2, MPI_DOUBLE, i, 0,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -148,12 +177,11 @@ int main(int argc, char *argv[]) {
     endTime = std::chrono::steady_clock::now();
 
     // create a file named {N}_{M}_{K}_output-{WORLD_SIZE}.txt
-
     std::string fileName = std::to_string(N) + "_" + std::to_string(M) + "_" +
-                           std::to_string(K) + "_time-" +
-                           std::to_string(WORLD_SIZE) + ".txt";
-    std::ofstream output(fileName);
-    output << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
+                           std::to_string(K) + "_time-" + ".txt";
+    std::ofstream output(fileName, std::ios::app);
+    output << WORLD_SIZE << ":"
+           << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
                                                                    beginTime)
                   .count()
            << std::endl;

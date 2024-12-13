@@ -4,7 +4,7 @@ import heapq
 
 # note: this script does not ensure distinct distances, and expects the output to be in order from least close to closest.
 
-bounds = (-1e4, 1e4)
+bounds = (-1e6, 1e6)
 
 
 def format_float(num):
@@ -103,5 +103,5 @@ def generate_test_case(n, m, k):
 
 
 # Example usage
-n, m, k = 500, 750, 450  # You can change these values as needed
+n, m, k = 500, 10, 1  # You can change these values as needed
 generate_test_case(n, m, k)

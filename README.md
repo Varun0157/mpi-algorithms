@@ -5,10 +5,12 @@ Distributed implementations using MPI of a multi-query K Nearest Neighbours, Pre
 ## Prerequisites
 ### required
 - `mpic++`
+
 There are a number of [reference guides](https://www.iitgoa.ac.in/hpcshiksha/HPC%20Shiksha%20-%20MPI%20Installation%20Guide.pdf) available. On linux, simply ensure `build-essential` and `mpich` are installed. 
 
 ### optional
 - `just`
+
 recipes in `justfiles` are used to simplify the build, clean and test calls. Install using the [programmer's manual](https://just.systems/man/en/installation.html). 
 
 ## Table of Contents

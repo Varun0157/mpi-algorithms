@@ -17,7 +17,7 @@ $PROGRAM > $TEMP_OUTPUT_FILE
 if diff -q "$TEMP_OUTPUT_FILE" "$KNOWN_OUTPUT_FILE" > /dev/null; then
     echo "pass"
 else
-    echo "FAIL"
+    echo "fail"
     # diff "$TEMP_OUTPUT_FILE" "$KNOWN_OUTPUT_FILE"
 fi
 

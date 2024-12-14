@@ -1,5 +1,7 @@
 # Parallel Algorithms using MPI
 
+Distributed implementations of a multi-query K Nearest Neighbours, Prefix Sum calculation, and Matrix Inversion using Row Reduction. 
+
 ## Prerequisites
 ### required
 - `mpic++`

@@ -36,10 +36,12 @@ Here, we simply distribute the queries to handle. This can be optimised further 
 
 ### Time Complexity
 - **sequential running time**
+
 $$
 O(M \cdot N \cdot log(K))
 $$
 - **parallel running time** for *p processes*
+
 $$
 O(\frac{M}{p} \cdot N \cdot log(K))
 $$
@@ -64,10 +66,12 @@ Compute the prefix sum of an array using parallel processing. The prefix sum arr
 
 ### Time Complexity 
 - **sequential running time**
+
 $$
 O(N)
 $$
 - **parallel running time** for *p processes*
+
 $$
 O(\frac{N}{p})
 $$
@@ -89,10 +93,12 @@ Explore [this presentation](https://cse.buffalo.edu/faculty/miller/Courses/CSE63
 
 ### Time Complexity
 - **sequential running time**
+
 $$
 O(N^3)
 $$
 - **parallel running time** for *p processes*
+
 $$
 O(\frac{N^3}{p})
 $$

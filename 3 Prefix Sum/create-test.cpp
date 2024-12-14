@@ -31,9 +31,9 @@ void write_files(int n) {
   auto numbers = generate_test_case(n);
 
   // Write input file
-  std::ofstream numbers_file("random.txt");
+  std::ofstream numbers_file("test-inp.txt");
 
-  numbers_file << std::setprecision(10);
+  numbers_file << std::setprecision(7);
 
   numbers_file << n << "\n";
   for (const auto &num : numbers) {
@@ -44,7 +44,7 @@ void write_files(int n) {
 
   // read from input file
   numbers.clear();
-  std::ifstream data_file("random.txt");
+  std::ifstream data_file("test-inp.txt");
 
   data_file >> n;
   for (int i = 0; i < n; i++) {
@@ -55,7 +55,7 @@ void write_files(int n) {
 
   // Write output file
   auto prefix_sums = calculate_prefix_sums(numbers);
-  std::ofstream output_file("random-opt.txt");
+  std::ofstream output_file("test-opt.txt");
 
   output_file << std::setprecision(10);
 

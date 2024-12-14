@@ -1,2 +1,0 @@
-- look into the bounds checking code again, is there a better way to do it? 
-- create a just file to test stuff 

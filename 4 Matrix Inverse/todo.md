@@ -1,2 +1,0 @@
-- change to MPI_Scatterv, you can do this by iterating through ranks (processes) instead of through rows in the master gaussian elim step 
-- 

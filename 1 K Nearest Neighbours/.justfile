@@ -5,7 +5,7 @@ build:
     mpic++ nearest-neighbours.cpp -o nearest-neighbours
 
 build-test:
-    python create.py 
+    python create-test.py 
 
 test NUM: build build-test 
     bash ../test-file.sh "mpiexec -n {{NUM}} ./nearest-neighbours test-inp.txt" "test-opt.txt"

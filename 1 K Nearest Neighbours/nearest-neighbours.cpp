@@ -187,17 +187,15 @@ int main(int argc, char *argv[]) {
 
   const int NUM_PROC = std::min(WORLD_SIZE, M); // in case WORLD_SIZE > M
 
-  std::vector<std::pair<double, double>> localQueries;
-  std::vector<std::vector<std::pair<double, double>>> localNN;
-
-  const int pointsPerQuery = std::min(K, N);
-
   if (WORLD_RANK >= NUM_PROC)
     return finalise();
 
+  const int pointsPerQuery = std::min(K, N);
+
+  std::vector<std::pair<double, double>> localQueries;
   setLocalQueries(WORLD_RANK, WORLD_SIZE, M, NUM_PROC, queries, localQueries);
-  localNN = getLocalNearestNeighbours(points, localQueries, WORLD_RANK,
-                                      NUM_PROC, M, pointsPerQuery);
+  auto localNN = getLocalNearestNeighbours(points, localQueries, WORLD_RANK,
+                                           NUM_PROC, M, pointsPerQuery);
 
   std::vector<std::vector<std::pair<double, double>>> globalNN;
   auto endTime = accumulateNearestNeighbours(

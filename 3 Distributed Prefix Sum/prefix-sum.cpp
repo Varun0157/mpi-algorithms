@@ -161,11 +161,10 @@ int main(int argc, char *argv[]) {
 
   const int NUM_PROC = std::min(WORLD_SIZE, N);
 
-  std::vector<double> localNums;
-
   if (WORLD_RANK >= NUM_PROC)
     return finalise();
 
+  std::vector<double> localNums;
   setLocalNums(WORLD_RANK, WORLD_SIZE, N, NUM_PROC, numbers, localNums);
   storeLocalPrefixSums(localNums);
   addWeightFromPreviousSets(WORLD_RANK, NUM_PROC, localNums);

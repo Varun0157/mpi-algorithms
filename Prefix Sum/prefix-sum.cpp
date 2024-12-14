@@ -22,6 +22,7 @@ void getNumbers(const char *filename, int &N, std::vector<double> &numbers) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
+  input >> std::setprecision(10);
   input >> N;
 
   numbers.resize(N);

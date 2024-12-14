@@ -1,7 +1,7 @@
 import numpy as np
 
 # Define the size of the matrix
-N = 750  # note: test file working for size 750
+N = 1_000  # note: test file working for size 750
 
 # Generate a random non-singular square matrix with 2 decimal places
 while True:

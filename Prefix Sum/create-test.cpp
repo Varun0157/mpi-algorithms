@@ -33,7 +33,7 @@ void write_files(int n) {
   // Write input file
   std::ofstream numbers_file("test-inp.txt");
 
-  numbers_file << std::setprecision(7);
+  numbers_file << std::setprecision(5);
 
   numbers_file << n << "\n";
   for (const auto &num : numbers) {
@@ -45,6 +45,8 @@ void write_files(int n) {
   // read from input file
   numbers.clear();
   std::ifstream data_file("test-inp.txt");
+
+  data_file >> std::setprecision(5);
 
   data_file >> n;
   for (int i = 0; i < n; i++) {
@@ -67,7 +69,7 @@ void write_files(int n) {
 }
 
 int main() {
-  int n = 2000000; // Set n manually here
+  int n = 2000; // Set n manually here
   write_files(n);
   return 0;
 }

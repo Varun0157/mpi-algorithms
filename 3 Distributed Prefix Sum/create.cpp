@@ -67,7 +67,7 @@ void write_files(int n) {
 }
 
 int main() {
-  int n = 10000; // Set n manually here
+  int n = 100000; // Set n manually here
   write_files(n);
   return 0;
 }

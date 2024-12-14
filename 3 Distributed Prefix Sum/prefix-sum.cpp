@@ -46,7 +46,7 @@ void sendLocalNumbersFromZero(const int NUM_PROC, const int N,
   }
 }
 
-void storePrefixSums(std::vector<double> nums) {
+void storePrefixSums(std::vector<double> &nums) {
   for (int i = 1; i < nums.size(); i++)
     nums[i] += nums[i - 1];
 }
@@ -54,7 +54,7 @@ void storePrefixSums(std::vector<double> nums) {
 std::vector<double> accumulateLocalSums(const std::vector<double> &currLocal,
                                         const int N, const int NUM_PROC) {
   std::vector<double> globalNums(N);
-  for (int i = 0; i < localNums.size(); i++)
+  for (int i = 0; i < currLocal.size(); i++)
     globalNums[i] = currLocal[i];
 
   for (int i = 1; i < NUM_PROC; i++) {

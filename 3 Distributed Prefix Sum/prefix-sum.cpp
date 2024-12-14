@@ -26,6 +26,46 @@ void getNumbers(const char *filename, int &N, std::vector<double> &numbers) {
   input.close();
 }
 
+std::pair<int, int> getBounds(const int rank, const int NUM_PROC, const int N) {
+  const int baseItems = N / NUM_PROC;
+  const int extraItems = N % NUM_PROC;
+  const int start = baseItems * rank + std::min(rank, extraItems),
+            end = start + baseItems + (rank < extraItems ? 1 : 0);
+
+  return {start, end};
+}
+
+void sendLocalNumbersFromZero(const int NUM_PROC, const int N,
+                              const std::vector<double> &numbers) {
+  for (int i = 1; i < NUM_PROC; i++) {
+    const auto [qStart, qEnd] = getBounds(i, NUM_PROC, N);
+    std::vector<double> numsToSend(numbers.begin() + qStart,
+                                   numbers.begin() + qEnd);
+    MPI_Send(numsToSend.data(), numsToSend.size(), MPI_DOUBLE, i, 0,
+             MPI_COMM_WORLD);
+  }
+}
+
+void storePrefixSums(std::vector<double> nums) {
+  for (int i = 1; i < nums.size(); i++)
+    nums[i] += nums[i - 1];
+}
+
+std::vector<double> accumulateLocalSums(const std::vector<double> &currLocal,
+                                        const int N, const int NUM_PROC) {
+  std::vector<double> globalNums(N);
+  for (int i = 0; i < localNums.size(); i++)
+    globalNums[i] = currLocal[i];
+
+  for (int i = 1; i < NUM_PROC; i++) {
+    const auto [qStart, qEnd] = getBounds(i, NUM_PROC, N);
+    MPI_Recv(globalNums.data() + qStart, qEnd - qStart, MPI_DOUBLE, i, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  }
+
+  return globalNums;
+}
+
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     std::cerr << "usage: " << argv[0] << " <input file>" << std::endl;
@@ -57,31 +97,16 @@ int main(int argc, char *argv[]) {
 
   const int NUM_PROC = std::min(WORLD_SIZE, N);
 
-  auto getBounds = [&NUM_PROC, &N](int rank) -> std::pair<int, int> {
-    const int baseItems = N / NUM_PROC;
-    const int extraItems = N % NUM_PROC;
-    const int start = baseItems * rank + std::min(rank, extraItems),
-              end = start + baseItems + (rank < extraItems ? 1 : 0);
-
-    return {start, end};
-  };
-
   std::vector<double> localNums;
 
-  const auto [start, end] = getBounds(WORLD_RANK);
+  const auto [start, end] = getBounds(WORLD_RANK, NUM_PROC, N);
 
   if (WORLD_RANK >= NUM_PROC)
     goto finalise;
 
   // store local numbers for each process to handle
   if (WORLD_RANK == 0) {
-    for (int i = 1; i < NUM_PROC; i++) {
-      const auto [qStart, qEnd] = getBounds(i);
-      std::vector<double> numsToSend(numbers.begin() + qStart,
-                                     numbers.begin() + qEnd);
-      MPI_Send(numsToSend.data(), numsToSend.size(), MPI_DOUBLE, i, 0,
-               MPI_COMM_WORLD);
-    }
+    sendLocalNumbersFromZero(NUM_PROC, N, numbers);
 
     localNums =
         std::vector<double>(numbers.begin() + start, numbers.begin() + end);
@@ -92,15 +117,13 @@ int main(int argc, char *argv[]) {
              MPI_STATUS_IGNORE);
   }
 
-  // calculate the prefix sums within the localNums array
-  for (int i = 1; i < localNums.size(); i++)
-    localNums[i] += localNums[i - 1];
+  storePrefixSums(localNums);
 
-  // send closing values to rank 0
-  // in rank 0, find values to add for remaining processes
   if (WORLD_RANK != 0) {
+    // send closing value to rank 0
     MPI_Send(&localNums.back(), 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 
+    // receive value to add from rank 0
     double prefixWeight = 0;
     MPI_Recv(&prefixWeight, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD,
              MPI_STATUS_IGNORE);
@@ -111,14 +134,17 @@ int main(int argc, char *argv[]) {
     std::vector<double> closingNums(NUM_PROC);
     closingNums[0] = localNums.back();
 
+    // receive closing nums from each remaining process
     for (int i = 1; i < NUM_PROC; i++) {
       MPI_Recv(&closingNums[i], 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
                MPI_STATUS_IGNORE);
     }
 
+    // calculate prefix weight for each process
     for (int i = 1; i < closingNums.size(); i++)
       closingNums[i] += closingNums[i - 1];
 
+    // send prefix weights to each process
     for (int i = 1; i < NUM_PROC; i++)
       MPI_Send(&closingNums[i - 1], 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
   }
@@ -128,29 +154,20 @@ int main(int argc, char *argv[]) {
     MPI_Send(localNums.data(), localNums.size(), MPI_DOUBLE, 0, 0,
              MPI_COMM_WORLD);
   } else {
-    std::vector<double> globalNums(N);
-    for (int i = 0; i < localNums.size(); i++)
-      globalNums[i] = localNums[i];
-
-    for (int i = 1; i < NUM_PROC; i++) {
-      const auto [qStart, qEnd] = getBounds(i);
-      MPI_Recv(globalNums.data() + qStart, qEnd - qStart, MPI_DOUBLE, i, 0,
-               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
+    std::vector<double> globalNums =
+        accumulateLocalSums(localNums, N, NUM_PROC);
 
     endTime = std::chrono::steady_clock::now();
 
-    std::string fileName = std::to_string(N) + "_time.txt";
-
-    std::ofstream output(fileName, std::ios::app);
+    std::ofstream output(std::to_string(N) + "_time.txt", std::ios::app);
     output << WORLD_SIZE << ":"
            << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
                                                                    beginTime)
                   .count()
            << std::endl;
 
-    for (int i = 0; i < globalNums.size(); i++)
-      std::cout << globalNums[i] << " ";
+    for (const double &num : globalNums)
+      std::cout << num << " ";
     std::cout << std::endl;
   }
 

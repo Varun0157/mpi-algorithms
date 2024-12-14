@@ -295,7 +295,7 @@ void partitionData(const int N, const int NUM_PROC, const int WORLD_RANK,
 }
 
 std::chrono::time_point<std::chrono::system_clock>
-accumulateAndPrint(const int NUM_PROC, const int N, const int WORLD_RANK,
+accumulateRows(const int NUM_PROC, const int N, const int WORLD_RANK,
                    const int WORLD_SIZE,
                    std::vector<std::vector<double>> &matrix,
                    std::vector<std::vector<double>> &identi,
@@ -374,7 +374,7 @@ int main(int argc, char *argv[]) {
   gaussianElimination(NUM_PROC, N, WORLD_RANK, localMatrix, localIdenti);
   backSubstitution(NUM_PROC, N, WORLD_RANK, localMatrix, localIdenti);
 
-  auto endTime = accumulateAndPrint(NUM_PROC, N, WORLD_RANK, WORLD_SIZE, matrix,
+  auto endTime = accumulateRows(NUM_PROC, N, WORLD_RANK, WORLD_SIZE, matrix,
                                     identi, localMatrix, localIdenti);
 
   if (WORLD_RANK != 0)

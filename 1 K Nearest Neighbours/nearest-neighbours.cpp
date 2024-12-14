@@ -206,7 +206,6 @@ int main(int argc, char *argv[]) {
 
   endTime = std::chrono::steady_clock::now();
 
-  // create a file named {N}_{M}_{K}_time.txt
   std::string fileName = std::to_string(N) + "_" + std::to_string(M) + "_" +
                          std::to_string(K) + "_time.txt";
   std::ofstream output(fileName, std::ios::app);
@@ -216,7 +215,6 @@ int main(int argc, char *argv[]) {
                 .count()
          << std::endl;
 
-  // print out the nearest neighbours
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < globalNN[i].size(); j++)
       std::cout << globalNN[i][j].first << " " << globalNN[i][j].second

@@ -17,6 +17,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  std::cout << std::setprecision(10);
+
   MPI_Init(&argc, &argv);
 
   int WORLD_SIZE;
@@ -307,10 +309,9 @@ int main(int argc, char *argv[]) {
 
     endTime = std::chrono::system_clock::now();
 
-    std::string fileName =
-        std::to_string(N) + "_time-" + std::to_string(WORLD_SIZE) + ".txt";
-    std::ofstream output(fileName);
-    output << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
+    std::ofstream output(std::to_string(N) + "_time.txt", std::ios::app);
+    output << WORLD_SIZE << ":"
+           << std::chrono::duration_cast<std::chrono::nanoseconds>(endTime -
                                                                    beginTime)
                   .count()
            << std::endl;

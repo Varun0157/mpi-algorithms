@@ -2,23 +2,16 @@
 
 Distributed implementations using MPI of a multi-query K Nearest Neighbours, Prefix Sum calculation, and Matrix Inversion using Row Reduction. 
 
-## Prerequisites
-### required
-- `mpic++`
-
-There are a number of [reference guides](https://www.iitgoa.ac.in/hpcshiksha/HPC%20Shiksha%20-%20MPI%20Installation%20Guide.pdf) available. On linux, simply ensure `build-essential` and `mpich` are installed. 
-
-### optional
-- `just`
-
-recipes in `justfiles` are used to simplify the build, clean and test calls. Install using the [programmer's manual](https://just.systems/man/en/installation.html). 
-
 ## Table of Contents
 1. [Distributed K-Nearest Neighbours](#1-distributed-k-nearest-neighbours)
 2. [Parallel Prefix Sum](#2-parallel-prefix-sum)
 3. [Matrix Inversion](#3-matrix-inversion)
 
 ## 1. Distributed K-Nearest Neighbours
+
+### Results
+![knn](docs/plots/k%20nearest.png)
+This was plotted with *N=1,000*, *M=10,000* and *K=500*. 
 
 ### Problem Statement
 Given a set `P` of `N` points in a 2D plane and a set `Q` of `M` query points, find the `K` nearest neighbors from `P` for each query point in `Q`. The distance is calculated using the Euclidean distance formula.
@@ -47,6 +40,10 @@ O(\frac{M}{p} \cdot N \cdot log(K))
 $$
 
 ## 2. Parallel Prefix Sum
+
+### Results
+![prefix-sum](docs/plots/prefix%20sum.png)
+This was plotted with *N=1,000,000*. 
 
 ### Problem Statement
 Compute the prefix sum of an array using parallel processing. The prefix sum array `p` for an array `a` is defined such that `p(i) = sum(a(1) to a(i))`.
@@ -78,6 +75,10 @@ $$
 
 ## 3. Matrix Inversion
 
+### Results
+![mat-inverse](docs/plots/mat%20inverse.png)
+This was plotted with *N=1,000* 
+
 ### Problem Statement
 Given a non-singular square matrix `A` of size `N × N`, compute its inverse using the row reduction method. The matrix is partitioned into rows and distributed across multiple processes.
 
@@ -102,6 +103,17 @@ $$
 $$
 O(\frac{N^3}{p})
 $$
+
+## Prerequisites
+### required
+- `mpic++`
+
+There are a number of [reference guides](https://www.iitgoa.ac.in/hpcshiksha/HPC%20Shiksha%20-%20MPI%20Installation%20Guide.pdf) available. On linux, simply ensure `build-essential` and `mpich` are installed. 
+
+### optional
+- `just`
+
+recipes in `justfiles` are used to simplify the build, clean and test calls. Install using the [programmer's manual](https://just.systems/man/en/installation.html). 
 
 ## Execution
 You can test each program by `cd`'ing into the required directory and running `just test-all`. See the available recipes to `clean`, `build`, or run with a specific number of processes. 

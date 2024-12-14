@@ -1,18 +1,26 @@
-# MPI-Based Parallel Algorithms
+# Parallel Algorithms using MPI
 
-This repository contains implementations of various parallel algorithms using MPI (Message Passing Interface). Each algorithm is designed to efficiently solve specific computational problems by leveraging parallel processing capabilities. Below are the details for each implemented algorithm.
+## Prerequisites
+### required
+- `mpic++`
+There are a number of [reference guides](https://www.iitgoa.ac.in/hpcshiksha/HPC%20Shiksha%20-%20MPI%20Installation%20Guide.pdf) available. On linux, simply ensure `build-essential` and `mpich` are installed. 
+
+### optional
+- `just`
+recipes in `justfiles` are used to simplify the build, clean and test calls. Install using the [programmer's manual](https://just.systems/man/en/installation.html). 
 
 ## Table of Contents
 1. [Distributed K-Nearest Neighbours](#1-distributed-k-nearest-neighbours)
-2. [Julia Set Computation](#2-julia-set-computation)
-3. [Parallel Prefix Sum](#3-parallel-prefix-sum)
-4. [Matrix Inversion](#4-matrix-inversion)
-5. [Parallel Matrix Chain Multiplication](#5-parallel-matrix-chain-multiplication)
+2. [Parallel Prefix Sum](#2-parallel-prefix-sum)
+3. [Matrix Inversion](#3-matrix-inversion)
 
 ## 1. Distributed K-Nearest Neighbours
 
 ### Problem Statement
 Given a set `P` of `N` points in a 2D plane and a set `Q` of `M` query points, find the `K` nearest neighbors from `P` for each query point in `Q`. The distance is calculated using the Euclidean distance formula.
+
+### Methodology
+Here, we simply distribute the queries to handle. This can be optimised further by distributing the computation of the nearest neighbours for each query as well - merging the intermediate nearest neighbours would be considerably faster. This will be explored later. 
 
 ### Input Format
 - The first line contains three integers: `N`, `M`, and `K`.
@@ -20,36 +28,53 @@ Given a set `P` of `N` points in a 2D plane and a set `Q` of `M` query points, f
 - The next `M` lines contain two space-separated floating-point numbers representing the coordinates `(xj, yj)` of each query point in `Q`.
 
 ### Output Format
-- For each query point in `Q`, print `K` lines of two space-separated integers representing the coordinates of the `K` nearest neighbors from `P`.
+- For each query point in `Q`, we write `K` lines of two space-separated integers representing the coordinates of the `K` nearest neighbors from `P` to a file. 
 
-## 2. Julia Set Computation
+### Time Complexity
+- **sequential running time**
+$$
+O(M \cdot N \cdot log(K))
+$$
+- **parallel running time** for *p processes*
+$$
+O(\frac{M}{p} \cdot N \cdot log(K))
+$$
 
-### Problem Statement
-Compute the Julia set for a given grid of complex numbers. The Julia set is defined by iterating over the function `z(n+1) = z(n)^2 + c` and checking how many iterations it takes for the magnitude of `z(n)` to exceed a given threshold `T`. 
-
-### Input Format
-- The first line contains three integers: `N`, `M`, and `K`, where `N × M` is the grid size and `K` is the maximum number of iterations.
-- The second line contains two floating-point numbers representing the real and imaginary parts of the constant complex number `c`.
-
-### Output Format
-- Print an `N × M` grid where each element is `1` if the point is in the Julia set (does not exceed the threshold within `K` iterations), and `0` otherwise.
-
-## 3. Parallel Prefix Sum
+## 2. Parallel Prefix Sum
 
 ### Problem Statement
 Compute the prefix sum of an array using parallel processing. The prefix sum array `p` for an array `a` is defined such that `p(i) = sum(a(1) to a(i))`.
+
+### Methodology
+- distribute `N/p` numbers to each of the `p` processes. 
+- calculate the intermediate prefix sums within each process. 
+- Send the last number in each intermediate prefix list back to the first process. Use this to calculate the value must be added by each of the processes to obtain the final list. 
+- Send the values back to the processes, add this offset to each element in the list, and accumulate the global prefix sums. 
 
 ### Input Format
 - The first line contains a single integer `N`, representing the size of the array.
 - The second line contains `N` space-separated floating-point numbers representing the elements of the array `a`.
 
 ### Output Format
-- Print a single line containing `N` space-separated floating-point numbers representing the prefix sum array `p`.
+- A single line containing `N` space-separated floating-point numbers representing the prefix sum array `p`.
 
-## 4. Matrix Inversion
+### Time Complexity 
+- **sequential running time**
+$$
+O(N)
+$$
+- **parallel running time** for *p processes*
+$$
+O(\frac{N}{p})
+$$
+
+## 3. Matrix Inversion
 
 ### Problem Statement
 Given a non-singular square matrix `A` of size `N × N`, compute its inverse using the row reduction method. The matrix is partitioned into rows and distributed across multiple processes.
+
+### Methodology
+Explore [this presentation](https://cse.buffalo.edu/faculty/miller/Courses/CSE633/thanigachalam-Spring-2014-CSE633.pdf) by Aravindhan Thanigachalam as part of the Parallel Algorithms course at University of Buffalo. 
 
 ### Input Format
 - The first line contains a single integer `N`, representing the size of the matrix.
@@ -58,37 +83,15 @@ Given a non-singular square matrix `A` of size `N × N`, compute its inverse usi
 ### Output Format
 - Print `N` lines, each containing `N` floating-point numbers, representing the inverse matrix `A^(-1)`.
 
-## 5. Parallel Matrix Chain Multiplication
+### Time Complexity
+- **sequential running time**
+$$
+O(N^3)
+$$
+- **parallel running time** for *p processes*
+$$
+O(\frac{N^3}{p})
+$$
 
-### Problem Statement
-Given a sequence of matrices with specified dimensions, determine the optimal order of multiplication to minimize the total number of scalar multiplications needed. The problem leverages the associative property of matrix multiplication to reduce computational cost.
-
-### Input Format
-- The first line contains one integer `N`, representing the number of matrices.
-- The second line contains `N + 1` integers representing the dimensions array `d`. The dimensions of the ith matrix are `d(i-1) × d(i)` for `1 ≤ i ≤ N`.
-
-### Output Format
-- Print one integer representing the minimum number of scalar multiplications needed to multiply the `N` matrices.
-
-## Setup and Execution
-
-### Prerequisites
-- MPI Library (e.g., OpenMPI)
-- C++ Compiler with MPI support (e.g., `mpic++`)
-
-### Compilation
-Each program can be compiled using the following command:
-# Compilation Command
-
-To compile the MPI program, use the following command:
-
-```bash
-mpic++ -o <output_executable_name> <source_code_file.cpp>
-```
-
-
-
-### Example
-```bash
-mpic++ -o julia_set julia_set.cpp
-mpirun -np 4 ./julia_set input.txt
+## Execution
+You can test each program by `cd`'ing into the required directory and running `just test-all`. See the available recipes to `clean`, `build`, or run with a specific number of processes. 

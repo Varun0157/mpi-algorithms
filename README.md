@@ -1,6 +1,6 @@
 # Parallel Algorithms using MPI
 
-Distributed implementations of a multi-query K Nearest Neighbours, Prefix Sum calculation, and Matrix Inversion using Row Reduction. 
+Distributed implementations using MPI of a multi-query K Nearest Neighbours, Prefix Sum calculation, and Matrix Inversion using Row Reduction. 
 
 ## Prerequisites
 ### required
@@ -97,3 +97,6 @@ $$
 
 ## Execution
 You can test each program by `cd`'ing into the required directory and running `just test-all`. See the available recipes to `clean`, `build`, or run with a specific number of processes. 
+
+## Note
+This was implemented as a part of *Assignment 3* of *Distributed Systems* in *IIIT-Hyderabad, Monsoon '24*. 

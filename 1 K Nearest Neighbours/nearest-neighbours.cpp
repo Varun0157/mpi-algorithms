@@ -133,6 +133,8 @@ std::chrono::time_point<std::chrono::steady_clock> accumulateNearestNeighbours(
       MPI_Send(localNN[i].data(), pointsPerQuery * 2, MPI_DOUBLE, 0, 0,
                MPI_COMM_WORLD);
   } else {
+    globalNN.resize(M, std::vector<std::pair<double, double>>(pointsPerQuery));
+
     // push the current local nearest neighbours (rank 0)
     for (int i = 0; i < localNN.size(); i++)
       globalNN[i] = localNN[i];
@@ -197,8 +199,7 @@ int main(int argc, char *argv[]) {
   localNN = getLocalNearestNeighbours(points, localQueries, WORLD_RANK,
                                       NUM_PROC, M, pointsPerQuery);
 
-  std::vector<std::vector<std::pair<double, double>>> globalNN(
-      M, std::vector<std::pair<double, double>>(pointsPerQuery));
+  std::vector<std::vector<std::pair<double, double>>> globalNN;
   auto endTime = accumulateNearestNeighbours(
       WORLD_RANK, WORLD_SIZE, NUM_PROC, M, pointsPerQuery, localNN, globalNN);
 

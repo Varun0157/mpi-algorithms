@@ -72,7 +72,7 @@ def generate_test_case(n, m, k):
         Q.append(new_point)
 
     # Write input to random-test.txt
-    with open("random.txt", "w") as f:
+    with open("test-inp.txt", "w") as f:
         f.write(f"{n} {m} {k}\n")
         for x, y in P:
             f.write(f"{x:.2f} {y:.2f}\n")
@@ -80,7 +80,7 @@ def generate_test_case(n, m, k):
             f.write(f"{x:.2f} {y:.2f}\n")
 
     # Calculate and write output to random-test-opt.txt
-    with open("random-opt.txt", "w") as f:
+    with open("test-opt.txt", "w") as f:
         for qx, qy in Q:
             distances = []
             for i, (px, py) in enumerate(P):
